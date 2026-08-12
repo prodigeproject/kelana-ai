@@ -64,3 +64,11 @@ def get_recommended_places(destination):
             "Local Market"
         ]
     )
+
+def get_travel_season(month):
+    if month == "December":
+        return "Peak Season"
+    elif month == "June":
+        return "Holiday Season"
+    else:
+        return "Regular Season"

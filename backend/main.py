@@ -3,6 +3,7 @@ from services.trip_service import (
     get_recommended_places,
     get_transportation,
     get_trip_category,
+    get_travel_season,
 )
 
 # DAY 1
@@ -27,6 +28,8 @@ def print_trip_summary(
         + misc_cost
     )
 
+    season = get_travel_season(travel_month)
+
     print("========================")
     print("KelanaAI")
     print("========================")
@@ -36,6 +39,7 @@ def print_trip_summary(
     print(f"Budget      : {budget} {currency}")
     print(f"Currency    : {currency}")
     print(f"Month       : {travel_month}")
+    print(f"Season      : {season}")
     print(f"Style       : {travel_style}")
     print(f"Hotel Cost  : {hotel_cost} {currency}")
     print(f"Food Cost   : {food_cost} {currency}")
@@ -166,3 +170,5 @@ print_trip_plan(
     5,
     1500,
 )
+
+# Homework day 2
