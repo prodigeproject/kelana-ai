@@ -4,6 +4,8 @@ from services.trip_service import (
     get_transportation,
     get_trip_category,
     get_travel_season,
+    get_travel_style,
+    get_transportation,
 )
 
 # DAY 1
@@ -171,4 +173,79 @@ print_trip_plan(
     1500,
 )
 
-# Homework day 2
+# Day 3
+
+from fastapi import FastAPI
+from pydantic import BaseModel
+
+
+class TripRequest(BaseModel):
+    destination: str
+    days: int
+    budget: float
+    travel_style: str
+
+
+app = FastAPI()
+
+# Default data for homework
+recommended_destination = "Japan"
+
+available_categories = [
+    "Backpacker",
+    "Standard",
+    "Luxury"
+]
+
+# GET endpoint at the root path
+@app.get("/")
+def home():
+    return {
+        "message": "Welcome to KelanaAI"
+    }
+
+# CORE CHALENGE
+@app.post("/api/v1/trips")
+def create_trip(request: TripRequest):
+    daily_budget = calculate_daily_budget(
+        request.budget,
+        request.days
+    )
+
+    category = get_trip_category(
+        request.budget
+    )
+
+    recommendation_transport = get_transportation(
+        request.travel_style
+    )
+
+    return {
+        "destination": request.destination,
+        "budget": request.budget,
+        "daily_budget": daily_budget,
+        "category": category,
+        "recommendation_transport": recommendation_transport,
+
+    }
+
+# BONUS CHALLENGE
+@app.get("/api/v1/trip-categories")
+def trip_categories():
+    return available_categories
+
+# HOMEWORK CHALLENGE
+@app.get("/api/v1/recommendations")
+def recommended_places():
+    return get_recommended_places(
+        recommended_destination
+    )
+
+@app.get("/api/v1/transportations")
+def recommended_transport():
+    return [
+        get_transportation(category)
+        for category in available_categories
+    ]
+    
+
