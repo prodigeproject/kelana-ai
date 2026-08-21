@@ -3,15 +3,16 @@ def calculate_daily_budget(budget, days):
 
 
 def get_trip_category(budget):
-    if budget == 700:
-        return "Budget"
-    elif budget == 2000:
+    if budget < 1000:
+        return "Backpacker"
+    elif budget <= 5000:
         return "Standard"
-    elif budget > 5000:
+    else:
         return "Luxury"
 
+
 def get_travel_style(category):
-    if category == "Budget":
+    if category == "Backpacker":
         return "Backpacker"
     elif category == "Standard":
         return "Normal"
@@ -73,6 +74,7 @@ def get_recommended_places(destination):
         ]
     )
 
+
 def get_travel_season(month):
     if month == "December":
         return "Peak Season"
@@ -81,8 +83,11 @@ def get_travel_season(month):
     else:
         return "Regular Season"
 
+
 def get_recommended_transport(travel_style):
     if travel_style == "Family":
         return get_transportation("Standard")
+    elif travel_style == "Backpacker":
+        return get_transportation("Backpacker")
     else:
         return "Unknown"

@@ -5,8 +5,18 @@ from services.trip_service import (
     get_trip_category,
     get_travel_season,
     get_travel_style,
-    get_transportation,
+    get_recommended_transport
 )
+
+from fastapi import FastAPI, HTTPException
+from pydantic import BaseModel
+
+from models.trip import Trip
+from database import SessionLocal, init_db
+
+init_db()
+
+app = FastAPI()
 
 # DAY 1
 
@@ -175,18 +185,15 @@ print_trip_plan(
 
 # Day 3
 
-from fastapi import FastAPI
-from pydantic import BaseModel
-
-
 class TripRequest(BaseModel):
     destination: str
     days: int
     budget: float
     travel_style: str
 
+class TripUpdate(BaseModel):
+    budget: float
 
-app = FastAPI()
 
 # Default data for homework
 recommended_destination = "Japan"
@@ -216,19 +223,46 @@ def create_trip(request: TripRequest):
         request.budget
     )
 
-    recommendation_transport = get_transportation(
+
+    recommendation_transport = get_recommended_transport(
         request.travel_style
     )
 
-    return {
-        "destination": request.destination,
-        "budget": request.budget,
-        "daily_budget": daily_budget,
-        "category": category,
-        "recommendation_transport": recommendation_transport,
+    # create a Trip ORM object
+    trip = Trip(
+        destination  = request.destination,
+        days         = request.days,
+        budget       = request.budget,
+        category     = category,
+        daily_budget = daily_budget,
+    )
 
-    }
+    db = SessionLocal()
 
+    # save to PostgreSQL
+    try:
+        db.add(trip)
+        db.commit()
+        db.refresh(trip) # get the auto-generated id
+
+        return {
+            "id": trip.id,
+            "destination": trip.destination,
+            "days": trip.days,
+            "budget": trip.budget,
+            "category": trip.category,
+            "daily_budget": trip.daily_budget,
+            "recommendation_transport": recommendation_transport,
+            "created_at": trip.created_at,
+        }
+
+    except:
+        db.rollback()
+        raise
+
+    finally:
+        db.close()
+    
 # BONUS CHALLENGE
 @app.get("/api/v1/trip-categories")
 def trip_categories():
@@ -249,3 +283,116 @@ def recommended_transport():
     ]
     
 
+## DAY 4
+
+@app.get("/api/v1/trips")
+def list_trips():
+    db = SessionLocal()
+    
+    try:
+        return db.query(Trip).all()
+    
+    finally:
+        db.close()
+
+@app.get("/api/v1/trips/{trip_id}")
+def get_trip(trip_id: int):
+    db = SessionLocal()
+
+    try:
+        trip = (
+            db.query(Trip)
+            .filter(Trip.id == trip_id)
+            .first()
+        )
+
+        # handling not found
+        if trip is None:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Trip with id {trip_id} not found"
+            )
+
+        return trip
+
+    finally:
+        db.close()
+
+@app.put("/api/v1/trips/{trip_id}")
+def update_trip(trip_id: int, request: TripUpdate):
+    db = SessionLocal()
+
+    try:
+        trip = (
+            db.query(Trip)
+            .filter(Trip.id == trip_id)
+            .first()
+        )
+
+        if trip is None:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Trip with id {trip_id} not found"
+            )
+
+        # Update budget
+        trip.budget = request.budget
+
+        # Recalculate based on new budget
+        trip.category = get_trip_category(
+            request.budget
+        )
+
+        trip.daily_budget = calculate_daily_budget(
+            request.budget,
+            trip.days
+        )
+
+        db.commit()
+        db.refresh(trip)
+
+        return trip
+
+    except HTTPException:
+        raise
+
+    except:
+        db.rollback()
+        raise
+
+    finally:
+        db.close()
+
+@app.delete("/api/v1/trips/{trip_id}")
+def delete_trip(trip_id: int):
+    db = SessionLocal()
+
+    try:
+        trip = (
+            db.query(Trip)
+            .filter(Trip.id == trip_id)
+            .first()
+        )
+
+        if trip is None:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Trip with id {trip_id} not found"
+            )
+
+        db.delete(trip)
+        db.commit()
+
+        return {
+            "message": f"Trip with id {trip_id} deleted successfully"
+        }
+
+    except HTTPException:
+        raise
+
+    except:
+        db.rollback()
+        raise
+
+    finally:
+        db.close()
