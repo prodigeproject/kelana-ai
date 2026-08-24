@@ -7,9 +7,11 @@ from services.trip_service import (
     get_travel_style,
     get_recommended_transport
 )
+from services.bedrock_service import bedrock_service
 
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
+from typing import Optional
 
 from models.trip import Trip
 from database import SessionLocal, init_db
@@ -396,3 +398,48 @@ def delete_trip(trip_id: int):
 
     finally:
         db.close()
+
+
+## DAY 5 - Teaching KelanaAI to Think with AI
+
+class AIQuestion(BaseModel):
+    question: str
+
+class TripSuggestionRequest(BaseModel):
+    destination: str
+    days: int
+    budget: float
+
+@app.post("/api/v1/ai/ask")
+def ask_ai_question(request: AIQuestion):
+    """Ask AI a travel-related question."""
+    answer = bedrock_service.ask_ai(request.question)
+    return {
+        "question": request.question,
+        "answer": answer
+    }
+
+@app.post("/api/v1/ai/suggest")
+def get_ai_suggestion(request: TripSuggestionRequest):
+    """Get AI suggestion for a trip plan."""
+    suggestion = bedrock_service.get_trip_suggestion(
+        request.destination,
+        request.days,
+        request.budget
+    )
+    return {
+        "destination": request.destination,
+        "days": request.days,
+        "budget": request.budget,
+        "suggestion": suggestion
+    }
+
+@app.get("/api/v1/ai/status")
+def check_ai_status():
+    """Check if AI is available."""
+    return {
+        "ai_available": bedrock_service.available,
+        "service": "Amazon Bedrock",
+        "region": bedrock_service.region,
+        "model": bedrock_service.model_id
+    }
