@@ -61,7 +61,7 @@ class BedrockService:
             return f"AI service temporarily unavailable. General travel tip: Plan your itinerary in advance."
 
     def get_trip_suggestion(self, destination: str, days: int, budget: float) -> str:
-        """Get simple AI suggestion for a trip."""
+        """Get AI suggestion for a trip with structured daily plan."""
         
         if not self.available:
             # Simple fallback
@@ -75,7 +75,32 @@ class BedrockService:
             return suggestions.get(destination, suggestions["default"])
         
         try:
-            prompt = f"Give short travel tips for {destination} for {days} days with ${budget} budget."
+            prompt = f"""Create a detailed daily travel plan for {destination} for {days} days with ${budget} budget.
+
+Please provide structured daily plans with these mandatory sections for EACH day:
+
+Morning activities: Provide 2-3 specific morning activities per day
+Afternoon activities: Include cultural sites and local experiences
+Evening activities: Suggest dinner spots and nightlife options
+
+Format each day as:
+Day [X]: [Theme/Title]
+
+Morning:
+- [Activity 1]
+- [Activity 2]
+- [Activity 3]
+
+Afternoon:
+- [Cultural site 1]
+- [Local experience]
+- [Cultural site 2]
+
+Evening:
+- [Dinner spot recommendation]
+- [Nightlife activity]
+
+Make the recommendations practical, culturally appropriate, and tailored to the budget."""
             
             response = self.client.converse(
                 modelId=self.model_id,
