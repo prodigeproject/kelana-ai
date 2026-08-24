@@ -443,3 +443,53 @@ def check_ai_status():
         "region": bedrock_service.region,
         "model": bedrock_service.model_id
     }
+
+
+@app.post("/api/v1/trips/{trip_id}/generate")
+def generate_ai_recommendation(trip_id: int):
+    """Generate and save AI recommendation for a trip."""
+    
+    db = SessionLocal()
+    
+    try:
+        # Get the trip
+        trip = (
+            db.query(Trip)
+            .filter(Trip.id == trip_id)
+            .first()
+        )
+
+        if trip is None:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Trip with id {trip_id} not found"
+            )
+
+        # Generate AI recommendation
+        ai_recommendation = bedrock_service.get_trip_suggestion(
+            destination=trip.destination,
+            days=trip.days,
+            budget=trip.budget
+        )
+
+        # Save to database
+        trip.ai_recommendation = ai_recommendation
+        db.commit()
+        db.refresh(trip)
+
+        return {
+            "id": trip.id,
+            "destination": trip.destination,
+            "ai_recommendation": trip.ai_recommendation,
+            "generated_at": trip.created_at
+        }
+
+    except HTTPException:
+        raise
+    
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to generate AI recommendation: {str(e)}")
+    
+    finally:
+        db.close()
