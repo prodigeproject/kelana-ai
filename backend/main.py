@@ -9,17 +9,21 @@ from services.trip_service import (
 )
 from services.bedrock_service import bedrock_service
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Depends
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Optional
 
 from models.trip import Trip
+from models.user import User
 from database import SessionLocal, init_db
+from services.auth_service import create_access_token, decode_access_token, hash_password, verify_password
 
 init_db()
 
 app = FastAPI()
+security = HTTPBearer(auto_error=False)
 
 app.add_middleware(
     CORSMiddleware,
@@ -204,6 +208,58 @@ class TripRequest(BaseModel):
 
 class TripUpdate(BaseModel):
     budget: float
+
+class RegisterRequest(BaseModel):
+    name: str
+    email: str
+    password: str
+
+class LoginRequest(BaseModel):
+    email: str
+    password: str
+
+def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
+    if credentials is None:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    db = SessionLocal()
+    try:
+        try:
+            user_id = decode_access_token(credentials.credentials)
+        except Exception:
+            raise HTTPException(status_code=401, detail="Invalid token")
+        user = db.query(User).filter(User.id == user_id).first()
+        if user is None:
+            raise HTTPException(status_code=401, detail="User not found")
+        return user
+    finally:
+        db.close()
+
+@app.post("/api/v1/auth/register")
+def register(request: RegisterRequest):
+    db = SessionLocal()
+    try:
+        if db.query(User).filter(User.email == request.email).first():
+            raise HTTPException(status_code=409, detail="Email already registered")
+        user = User(name=request.name, email=request.email, password_hash=hash_password(request.password))
+        db.add(user); db.commit(); db.refresh(user)
+        return {"id": user.id, "name": user.name, "email": user.email}
+    finally:
+        db.close()
+
+@app.post("/api/v1/auth/login")
+def login(request: LoginRequest):
+    db = SessionLocal()
+    try:
+        user = db.query(User).filter(User.email == request.email).first()
+        if user is None or not verify_password(request.password, user.password_hash):
+            raise HTTPException(status_code=401, detail="Invalid credentials")
+        return {"access_token": create_access_token(user.id), "token_type": "Bearer"}
+    finally:
+        db.close()
+
+@app.get("/api/v1/auth/me")
+def current_user(user: User = Depends(get_current_user)):
+    return {"id": user.id, "name": user.name, "email": user.email}
 
 
 # Default data for homework

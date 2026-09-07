@@ -2,3 +2,5 @@ sqlalchemy # the ORM
 psycopg2-binary # the Postgres driver
 python-dotenv # load .env variables
 boto3==1.43.56
+python-jose[cryptography]
+passlib[bcrypt]
