@@ -77,7 +77,8 @@ class BedrockService:
         try:
             prompt = f"""Create a detailed daily travel plan for {destination} for {days} days with ${budget} budget.
 
-Please provide structured daily plans with these mandatory sections for EACH day:
+Please provide structured daily plans with these mandatory sections for EACH day,
+followed by the additional sections below:
 
 Morning activities: Provide 2-3 specific morning activities per day
 Afternoon activities: Include cultural sites and local experiences
@@ -99,6 +100,18 @@ Afternoon:
 Evening:
 - [Dinner spot recommendation]
 - [Nightlife activity]
+
+Travel Tips:
+- [Practical local travel tip]
+
+Local Food Recommendations:
+- [Local dish or food experience]
+
+Estimated Budget Breakdown:
+- Accommodation: [estimate]
+- Food: [estimate]
+- Transport: [estimate]
+- Activities and misc: [estimate]
 
 Make the recommendations practical, culturally appropriate, and tailored to the budget."""
             
