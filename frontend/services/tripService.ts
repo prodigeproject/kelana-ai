@@ -3,9 +3,10 @@ import { Trip } from "@/types/trip";
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
+  const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
   const response = await fetch(`${API_URL}/api/v1${path}`, {
     ...options,
-    headers: { "Content-Type": "application/json", ...options?.headers },
+    headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}), ...options?.headers },
   });
   if (!response.ok) throw new Error(`Request failed with status ${response.status}`);
   return response.json();

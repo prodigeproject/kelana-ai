@@ -280,7 +280,7 @@ def home():
 
 # CORE CHALENGE
 @app.post("/api/v1/trips")
-def create_trip(request: TripRequest):
+def create_trip(request: TripRequest, user: User = Depends(get_current_user)):
     daily_budget = calculate_daily_budget(
         request.budget,
         request.days
@@ -302,6 +302,7 @@ def create_trip(request: TripRequest):
         budget       = request.budget,
         category     = category,
         travel_style = request.travel_style,
+        user_id      = user.id,
         daily_budget = daily_budget,
     )
 
@@ -355,23 +356,23 @@ def recommended_transport():
 ## DAY 4
 
 @app.get("/api/v1/trips")
-def list_trips():
+def list_trips(user: User = Depends(get_current_user)):
     db = SessionLocal()
     
     try:
-        return db.query(Trip).all()
+        return db.query(Trip).filter(Trip.user_id == user.id).all()
     
     finally:
         db.close()
 
 @app.get("/api/v1/trips/{trip_id}")
-def get_trip(trip_id: int):
+def get_trip(trip_id: int, user: User = Depends(get_current_user)):
     db = SessionLocal()
 
     try:
         trip = (
             db.query(Trip)
-            .filter(Trip.id == trip_id)
+            .filter(Trip.id == trip_id, Trip.user_id == user.id)
             .first()
         )
 
@@ -388,7 +389,7 @@ def get_trip(trip_id: int):
         db.close()
 
 @app.put("/api/v1/trips/{trip_id}")
-def update_trip(trip_id: int, request: TripUpdate):
+def update_trip(trip_id: int, request: TripUpdate, user: User = Depends(get_current_user)):
     db = SessionLocal()
 
     try:
@@ -403,6 +404,9 @@ def update_trip(trip_id: int, request: TripUpdate):
                 status_code=404,
                 detail=f"Trip with id {trip_id} not found"
             )
+
+        if trip.user_id != user.id:
+            raise HTTPException(status_code=403, detail="You do not own this trip")
 
         # Update budget
         trip.budget = request.budget
@@ -433,7 +437,7 @@ def update_trip(trip_id: int, request: TripUpdate):
         db.close()
 
 @app.delete("/api/v1/trips/{trip_id}")
-def delete_trip(trip_id: int):
+def delete_trip(trip_id: int, user: User = Depends(get_current_user)):
     db = SessionLocal()
 
     try:
@@ -448,6 +452,9 @@ def delete_trip(trip_id: int):
                 status_code=404,
                 detail=f"Trip with id {trip_id} not found"
             )
+
+        if trip.user_id != user.id:
+            raise HTTPException(status_code=403, detail="You do not own this trip")
 
         db.delete(trip)
         db.commit()
@@ -513,7 +520,7 @@ def check_ai_status():
 
 
 @app.post("/api/v1/trips/{trip_id}/generate")
-def generate_ai_recommendation(trip_id: int):
+def generate_ai_recommendation(trip_id: int, user: User = Depends(get_current_user)):
     """Generate and save AI recommendation for a trip."""
     
     db = SessionLocal()
@@ -522,7 +529,7 @@ def generate_ai_recommendation(trip_id: int):
         # Get the trip
         trip = (
             db.query(Trip)
-            .filter(Trip.id == trip_id)
+            .filter(Trip.id == trip_id, Trip.user_id == user.id)
             .first()
         )
 
