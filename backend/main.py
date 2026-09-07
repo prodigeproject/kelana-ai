@@ -245,6 +245,7 @@ def create_trip(request: TripRequest):
         days         = request.days,
         budget       = request.budget,
         category     = category,
+        travel_style = request.travel_style,
         daily_budget = daily_budget,
     )
 
@@ -262,6 +263,7 @@ def create_trip(request: TripRequest):
             "days": trip.days,
             "budget": trip.budget,
             "category": trip.category,
+            "travel_style": trip.travel_style,
             "daily_budget": trip.daily_budget,
             "recommendation_transport": recommendation_transport,
             "created_at": trip.created_at,
