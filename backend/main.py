@@ -19,6 +19,7 @@ from models.trip import Trip
 from models.user import User
 from database import SessionLocal, init_db
 from services.auth_service import create_access_token, decode_access_token, hash_password, verify_password
+from services.kb_service import ask_knowledge_base
 
 init_db()
 
@@ -217,6 +218,13 @@ class RegisterRequest(BaseModel):
 class LoginRequest(BaseModel):
     email: str
     password: str
+
+class QuestionRequest(BaseModel):
+    question: str
+
+@app.post("/api/v1/assistant")
+def ask_assistant(request: QuestionRequest, user: User = Depends(get_current_user)):
+    return {"question": request.question, **ask_knowledge_base(request.question)}
 
 def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
     if credentials is None:
