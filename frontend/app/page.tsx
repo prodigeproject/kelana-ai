@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 
 type Trip = {
   id: number;
@@ -22,6 +23,7 @@ function splitItinerary(recommendation: string) {
 }
 
 export default function Home() {
+  const router = useRouter();
   const [destination, setDestination] = useState("Japan");
   const [budget, setBudget] = useState("2000");
   const [days, setDays] = useState("5");
@@ -44,7 +46,10 @@ export default function Home() {
     try {
       const response = await fetch(`${API_URL}/api/v1/trips`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(localStorage.getItem("token") ? { Authorization: `Bearer ${localStorage.getItem("token")}` } : {}),
+        },
         body: JSON.stringify({
           destination,
           budget: Number(budget),
@@ -53,12 +58,16 @@ export default function Home() {
         }),
       });
 
+      if (response.status === 401) {
+        router.push("/login");
+        return;
+      }
       if (!response.ok) throw new Error("Unable to create the trip.");
 
       const createdTrip: Trip = await response.json();
       const recommendationResponse = await fetch(
         `${API_URL}/api/v1/trips/${createdTrip.id}/generate`,
-        { method: "POST" },
+        { method: "POST", headers: { ...(localStorage.getItem("token") ? { Authorization: `Bearer ${localStorage.getItem("token")}` } : {}) } },
       );
 
       if (!recommendationResponse.ok) {
