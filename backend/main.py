@@ -286,6 +286,10 @@ def home():
         "message": "Welcome to KelanaAI"
     }
 
+@app.get("/health")
+def health():
+    return {"status": "ok"}
+
 # CORE CHALENGE
 @app.post("/api/v1/trips")
 def create_trip(request: TripRequest, user: User = Depends(get_current_user)):
