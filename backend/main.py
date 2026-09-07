@@ -17,6 +17,7 @@ from typing import Optional
 
 from models.trip import Trip
 from models.user import User
+from models.conversation import Conversation, Message
 from database import SessionLocal, init_db
 from services.auth_service import create_access_token, decode_access_token, hash_password, verify_password
 from services.kb_service import ask_knowledge_base
@@ -221,6 +222,75 @@ class LoginRequest(BaseModel):
 
 class QuestionRequest(BaseModel):
     question: str
+
+class MessageRequest(BaseModel):
+    content: str
+
+class ConversationUpdate(BaseModel):
+    title: str
+
+@app.post("/api/v1/conversations")
+def create_conversation(user: User = Depends(get_current_user)):
+    db = SessionLocal()
+    try:
+        conversation = Conversation(user_id=user.id, title="New conversation")
+        db.add(conversation); db.commit(); db.refresh(conversation)
+        return {"conversation_id": conversation.id, "title": conversation.title}
+    finally:
+        db.close()
+
+@app.get("/api/v1/conversations")
+def list_conversations(user: User = Depends(get_current_user)):
+    db = SessionLocal()
+    try:
+        return db.query(Conversation).filter(Conversation.user_id == user.id).order_by(Conversation.created_at.desc()).all()
+    finally:
+        db.close()
+
+@app.get("/api/v1/conversations/{conversation_id}/messages")
+def list_messages(conversation_id: int, user: User = Depends(get_current_user)):
+    db = SessionLocal()
+    try:
+        conversation = db.query(Conversation).filter(Conversation.id == conversation_id, Conversation.user_id == user.id).first()
+        if conversation is None:
+            raise HTTPException(status_code=404, detail="Conversation not found")
+        return db.query(Message).filter(Message.conversation_id == conversation_id).order_by(Message.created_at.asc()).all()
+    finally:
+        db.close()
+
+@app.patch("/api/v1/conversations/{conversation_id}")
+def rename_conversation(conversation_id: int, request: ConversationUpdate, user: User = Depends(get_current_user)):
+    db = SessionLocal()
+    try:
+        conversation = db.query(Conversation).filter(Conversation.id == conversation_id, Conversation.user_id == user.id).first()
+        if conversation is None:
+            raise HTTPException(status_code=404, detail="Conversation not found")
+        conversation.title = request.title
+        db.commit(); db.refresh(conversation)
+        return conversation
+    finally:
+        db.close()
+
+@app.post("/api/v1/conversations/{conversation_id}/messages")
+def send_message(conversation_id: int, request: MessageRequest, user: User = Depends(get_current_user)):
+    db = SessionLocal()
+    try:
+        conversation = db.query(Conversation).filter(Conversation.id == conversation_id, Conversation.user_id == user.id).first()
+        if conversation is None:
+            raise HTTPException(status_code=404, detail="Conversation not found")
+        user_message = Message(conversation_id=conversation_id, role="user", content=request.content)
+        db.add(user_message); db.commit()
+        history = db.query(Message).filter(Message.conversation_id == conversation_id).order_by(Message.created_at.asc()).all()
+        prompt = "\n".join(f"{message.role}: {message.content}" for message in history)
+        answer = bedrock_service.ask_ai(f"Answer as a travel assistant using this conversation context:\n{prompt}")
+        assistant_message = Message(conversation_id=conversation_id, role="assistant", content=answer)
+        db.add(assistant_message); db.commit(); db.refresh(assistant_message)
+        if conversation.title == "New conversation":
+            conversation.title = request.content[:60]
+            db.commit()
+        return assistant_message
+    finally:
+        db.close()
 
 @app.post("/api/v1/assistant")
 def ask_assistant(request: QuestionRequest, user: User = Depends(get_current_user)):
